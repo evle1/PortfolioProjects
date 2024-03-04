@@ -13,3 +13,8 @@ In this folder:
 
 Report summarizing analytics & model building process
 Related Code
+
+Code description:
+
+Various files include various treatment methods and different ML models. 
+Data Analysis & Exploration and Benchmark & Data Exploration files should be viewed first, after which there is no ideal viewing order.
