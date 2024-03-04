@@ -1,0 +1,15 @@
+Background:
+
+For individuals to apply for a housing loan, a variety of factors that must be considered include credit score, income, marital status, assets, and job history.
+If a predictive model could be generated that would automate the assessment of all these factors and mark applicants for approval or rejection quickly, it would significantly reduce the time and effort of both the employees assessing the loan and the candidate applying
+for it. 
+
+Data & Busines Problem:
+
+We have obtained our dataset on Kaggle from the Dream Housing Finance Home Loan Dataset that consists of customer data. The business problem we are trying to solve 
+is the creation of a predictive model that can accurately classify a potential customer as one who will be approved for a loan or one who will not be approved for a loan.
+
+In this folder:
+
+Report summarizing analytics & model building process
+Related Code
