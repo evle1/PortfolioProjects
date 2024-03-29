@@ -1,0 +1,4 @@
+This was a school project done early in UCI's MSBA program, where our group was tasked with performing customer segmentation for Sun Country Airlines and coming up with insights based on our analysis. This folder contains code created in python for data cleaning and
+exploration as well as the clustering using K-means clustering. There is a link to the Tableau Public project created for data vizualizations, as well as the report putting those visualizations and data insights together.
+
+Tableau Public project link: https://public.tableau.com/app/profile/ethan1339/viz/SunCountyAirlinesCaseStudy-Clustering/ClusterTicketBookingSeasons
