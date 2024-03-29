@@ -1,0 +1,246 @@
+---
+title: "BANA 277 Final Project Cleaned"
+output: html_document
+date: "2024-03-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Install & Read Packages
+
+```{r}
+#install.packages("readr")
+#install.packages("vctrs")
+#install.packages("dplyr")
+#install.packages("igraph")
+```
+
+
+```{r}
+library(readr)
+library(vctrs)
+library(dplyr)
+library(igraph)
+```
+
+
+##read dataset files
+
+Dataset can be found at: https://snap.stanford.edu/data/twitch_gamers.html 
+
+```{r}
+features <- read_csv("/Users/Ethan/Downloads/twitch_gamers/large_twitch_features.csv")
+edges <- read_csv("/Users/Ethan/Downloads/twitch_gamers/large_twitch_edges.csv")
+print(features)
+print(edges)
+```
+
+##Modify Indexes to allow for neighbors code to loop through the dataframes
+```{r}
+# Add 1 to the numeric_id column in features, so neighbor function can iterate through the dataset
+features$numeric_id <- features$numeric_id + 1
+
+# Add 1 to the numeric_id_1 and numeric_id_2 columns in edges, same reason
+edges$numeric_id_1 <- edges$numeric_id_1 + 1
+edges$numeric_id_2 <- edges$numeric_id_2 + 1
+```
+
+##Find the highest degree node in order to subset the data
+
+```{r}
+## Create the graph using the limited edges dataframe
+g <- graph_from_edgelist(as.matrix(edges[, 1:2]), directed = FALSE)
+
+
+# Use row names of 'features' as vertex names
+vertex_names <- rownames(features)
+V(g)$name <- vertex_names
+
+# Calculate the degree of each node
+degrees <- degree(g)
+
+# Convert the degrees to a dataframe with node IDs
+degrees_df <- data.frame(node_id = names(degrees), degree = degrees)
+
+# Sort the dataframe by degree in descending order
+degrees_sorted <- degrees_df[order(-degrees_df$degree), ]
+
+# Print the sorted dataframe
+print(degrees_sorted)
+```
+
+##Create and visualize the network
+```{r}
+# Function to perform breadth-first search to limit the number of nodes
+bfs_limit_nodes <- function(graph, start_node, max_nodes) {
+  visited <- rep(FALSE, vcount(graph))  # Initialize visited status for all nodes
+  visited[start_node] <- TRUE           # Mark the start node as visited
+  queue <- list(start_node)             # Initialize the queue with the start node
+  
+  while (length(queue) > 0 && sum(visited) < max_nodes) {
+    node <- queue[[1]]                  # Dequeue the first node from the queue
+    neighbors <- neighbors(graph, node, mode = "all")  # Get neighbors of the current node
+    
+    for (neighbor in neighbors) {
+      if (!visited[neighbor]) {
+        visited[neighbor] <- TRUE      # Mark the neighbor as visited
+        queue <- c(queue, neighbor)   # Enqueue the neighbor
+      }
+    }
+    
+    queue <- queue[-1]                 # Remove the processed node from the queue
+  }
+  
+  ego_nodes <- which(visited)          # Get the indices of visited nodes
+  return(ego_nodes)
+}
+
+# Find the vertex corresponding to node 61863
+vertex_61863 <- which(V(g)$name == "61863")
+
+# Set the maximum number of nodes in the ego network (adjust as needed)
+max_nodes <- 1000
+
+# Extract nodes for the ego network with a maximum number of nodes using BFS
+ego_nodes <- bfs_limit_nodes(g, vertex_61863, max_nodes)
+
+# Extract the subgraph containing the ego network
+ego_network <- induced_subgraph(g, vids = ego_nodes)
+
+# Plot the ego network
+plot(
+  ego_network,
+  vertex.label = ifelse(V(ego_network)$name == "61863", V(ego_network)$name, NA),
+  vertex.label.cex = 1.5
+)
+```
+
+##Create a network visualization with node size scaled by degree
+
+```{r}
+ego_degrees <- degree(ego_network)
+
+# Create a dataframe to store node IDs and their corresponding degrees
+ego_degrees_df <- data.frame(node_id = V(ego_network)$name, degree = ego_degrees)
+
+node_61683_index <- which(ego_degrees_df$node_id == "61683")
+
+# Create a vector to store edge colors
+edge_colors <- rep("lightgray", length(E(ego_network)))
+
+# Find the edges connected to node 61683
+edges_connected_to_node_61683 <- which(ends(ego_network, E(ego_network))[1, ] == node_61683_index |
+                                      ends(ego_network, E(ego_network))[2, ] == node_61683_index)
+
+# Assign red color to edges connected to node 61683
+edge_colors[edges_connected_to_node_61683] <- "red"
+
+node_size <- 0.05 * sqrt(ego_degrees_df$degree)
+
+# Define edge colors vector (use red for edges connected to node 61863, and black for others)
+
+# Plot the ego network with customized visualization parameters
+plot(
+  ego_network,
+  vertex.size = node_size,
+  vertex.label = ifelse(V(ego_network)$name == "61863", V(ego_network)$name, NA),
+  vertex.label.cex = 1.5,
+  edge.color = edge_colors
+)
+```
+
+##Eigenvector Centrality Analysis:
+
+```{r}
+eigenvector_centrality <- evcent(ego_network)$vector
+ego_degrees <- degree(ego_network)
+
+# Create a dataframe to store node IDs and their corresponding degrees
+ego_degrees_df <- data.frame(node_id = V(ego_network)$name, degree = ego_degrees)
+# Create a dataframe to store node IDs and eigenvector centrality
+eigenvector_centrality_df <- data.frame(
+  Node = V(ego_network)$name,
+  Eigenvector_Centrality = eigenvector_centrality
+)
+
+eigenvector_centrality_df <- eigenvector_centrality_df[order(-eigenvector_centrality_df$Eigenvector_Centrality), ]
+ego_degrees_df <- ego_degrees_df[order(-ego_degrees_df$degree), ]
+# Print the sorted dataframe
+print(eigenvector_centrality_df)
+print(ego_degrees_df)
+```
+
+##Merge degree with features in order to run regression models:
+
+```{r}
+df <- merge(features, ego_degrees_df, by.x = "numeric_id", by.y = "node_id")
+
+# Print the merged dataframe
+print(df)
+```
+
+##Poisson regression:
+
+```{r}
+model <- glm(degree ~ views + mature + life_time + affiliate, data = df, family = poisson)
+
+# Print the summary of the model
+summary(model)
+```
+
+```{r}
+model <- glm(views ~ degree + affiliate + mature +life_time, data = df, family = poisson)
+
+# Print the summary of the model
+summary(model)
+```
+
+
+##Exploratory Analysis of features
+
+```{r}
+affiliate_counts <- table(df$affiliate)
+
+# Print the counts
+print(affiliate_counts)
+```
+
+```{r}
+median(df$views)
+mean(df$views)
+```
+
+```{r}
+mature_counts <- table(df$mature)
+
+# Print the counts
+print(mature_counts)
+```
+```{r}
+summary(df$life_time)
+max(df$life_time)
+```
+```{r}
+dead_counts <- table(df$dead_account)
+
+# Print the counts
+print(dead_counts)
+```
+
+##Exploratory Analysis Histograms & Barplot
+
+```{r}
+hist(df$mature, main = "Distribution of 'mature'", xlab = "Mature", col = "purple")
+hist(df$life_time, main = "Distribution of 'life_time'", xlab = "Life Time", col = "purple")
+hist(df$affiliate, main = "Distribution of 'affiliate'", xlab = "Affiliate", col = "purple")
+hist(df$views, main = "Distribution of 'views'", xlab = "Views", col = "purple")
+hist(df$dead_account, main = "Distribution of 'dead accounts'", xlab = "dead account", col = "purple")
+
+
+barplot(table(df$language), main = "Distribution of 'language'", 
+        xlab = "Language", ylab = "Frequency",
+        las = 2, col = "purple")  # Rotate labels vertically
+```
+
