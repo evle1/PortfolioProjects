@@ -1,0 +1,6 @@
+This is a network analysis conducted in R utilizing the iGraph library, using the SNAP Twitch Gamers dataset found here: https://snap.stanford.edu/data/twitch_gamers.html
+
+This folder contains 2 files - 
+
+1) The code used in  the analysis of the network (excluding that used for homophily analysis)
+2) The report containing findings from the analysis
